@@ -1,2 +1,3 @@
 # nats-protoo
-A go signaling framework based on NATS MQ.
+
+A golang signaling framework based on NATS MQ.
