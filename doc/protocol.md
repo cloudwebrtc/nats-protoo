@@ -4,6 +4,7 @@
 
 ``` go
 nprotoo := nprotoo.NewNantsProtoo("nats://127.0.0.1:4222")
+
 nprotoo.OnRequest("node-controller-channel", func(request map[string]interface{}, accept AcceptFunc, reject RejectFunc) {
 
     method := request["method"].(string)
