@@ -60,6 +60,21 @@ func (req *Requestor) Request(method string, data map[string]interface{}, succes
 	req.np.Send(payload, req.subj, req.reply)
 }
 
+// RequestAsFuture .
+func (req *Requestor) RequestAsFuture(method string, data map[string]interface{}) *Future {
+	var future = NewFuture()
+	req.Request(method, data,
+		func(data map[string]interface{}) {
+			logger.Debugf("RequestAsFuture: accept [%v]", data)
+			future.resolve(data)
+		},
+		func(code int, reason string) {
+			logger.Debugf("RequestAsFuture: reject [%d:%s]", code, reason)
+			future.reject(&Error{code, reason})
+		})
+	return future
+}
+
 func (req *Requestor) onReply(msg *nats.Msg) {
 	logger.Debugf("Got response [subj:%s, reply:%s]: %s", msg.Subject, msg.Reply, string(msg.Data))
 	req.handleMessage(msg.Data, msg.Subject, msg.Reply)

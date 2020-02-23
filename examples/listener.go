@@ -23,8 +23,8 @@ func main() {
 		data := request["data"].(map[string]interface{})
 		logger.Infof("method => %s, data => %v", method, data)
 
-		accept(JsonEncode(`{}`))
-		//reject(404,"Not found")
+		//accept(JsonEncode(`{}`))
+		reject(404, "Not found")
 	})
 	npc.OnBroadcast("even1", func(data map[string]interface{}, subj string) {
 		logger.Infof("Got Broadcast subj => %s, data => %v", subj, data)
