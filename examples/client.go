@@ -20,25 +20,27 @@ func main() {
 	npc := nprotoo.NewNatsProtoo(nprotoo.DefaultNatsURL)
 	req := npc.NewRequestor("channel1")
 
-	req.Request("offer", JsonEncode(`{ "sdp": "dummy-sdp1"}`),
+	req.AsyncRequest("offer", JsonEncode(`{ "sdp": "dummy-sdp1"}`)).Then(
 		func(result map[string]interface{}) {
-			logger.Infof("offer success: =>  %s", result)
+			logger.Infof("AsyncRequest.Then: offer success: =>  %s", result)
 		},
-		func(code int, err string) {
-			logger.Warnf("offer reject: %d => %s", code, err)
+		func(err *nprotoo.Error) {
+			logger.Warnf("AsyncRequest.Then: offer reject: %d => %s", err.Code, err.Reason)
 		})
 
-	req.RequestAsFuture("offer", JsonEncode(`{ "sdp": "dummy-sdp2"}`))
-
-	result, err := req.RequestAsFuture("offer", JsonEncode(`{ "sdp": "dummy-sdp3"}`)).Await()
+	result, err := req.SyncRequest("offer", JsonEncode(`{ "sdp": "dummy-sdp3"}`))
 	if err != nil {
 		logger.Warnf("offer reject: %d => %s", err.Code, err.Reason)
 	} else {
 		logger.Infof("offer success: =>  %s", result)
 	}
+	/*
+		req.AsyncRequest("offer", JsonEncode(`{ "sdp": "dummy-sdp2"}`))
 
-	bc := npc.NewBroadcaster("even1")
-	bc.Say("hello", JsonEncode(`{"key": "value"}`))
+
+	*/
+	//bc := npc.NewBroadcaster("even1")
+	//bc.Say("hello", JsonEncode(`{"key": "value"}`))
 
 	select {}
 }

@@ -29,6 +29,18 @@ func (future *Future) Await() (map[string]interface{}, *Error) {
 	return future.result, future.err
 }
 
+// Then .
+func (future *Future) Then(resolve func(result map[string]interface{}), reject func(err *Error)){
+	go func(){
+		<-future.c
+		if future.err != nil {
+			reject(future.err)
+		} else {
+			resolve(future.result)
+		}
+	}()
+}
+
 func (future *Future) resolve(result map[string]interface{}){
 	future.result = result
 	close(future.c)

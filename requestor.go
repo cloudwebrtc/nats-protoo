@@ -30,8 +30,7 @@ func newRequestor(channel string, np *NatsProtoo, nc *nats.Conn) *Requestor {
 	return &req
 }
 
-// Request
-// Send a request to the channel.
+// Request .
 func (req *Requestor) Request(method string, data map[string]interface{}, success AcceptFunc, reject RejectFunc) {
 	id := GenerateRandomNumber()
 	request := &Request{
@@ -60,8 +59,13 @@ func (req *Requestor) Request(method string, data map[string]interface{}, succes
 	req.np.Send(payload, req.subj, req.reply)
 }
 
-// RequestAsFuture .
-func (req *Requestor) RequestAsFuture(method string, data map[string]interface{}) *Future {
+// SyncRequest .
+func (req *Requestor) SyncRequest(method string, data map[string]interface{}) (map[string]interface{}, *Error) {
+	return req.AsyncRequest(method, data).Await()
+}
+
+// AsyncRequest .
+func (req *Requestor) AsyncRequest(method string, data map[string]interface{}) *Future {
 	var future = NewFuture()
 	req.Request(method, data,
 		func(data map[string]interface{}) {
