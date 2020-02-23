@@ -34,13 +34,11 @@ func main() {
 	} else {
 		logger.Infof("offer success: =>  %s", result)
 	}
-	/*
-		req.AsyncRequest("offer", JsonEncode(`{ "sdp": "dummy-sdp2"}`))
 
+	req.AsyncRequest("offer", JsonEncode(`{ "sdp": "dummy-sdp2"}`))
 
-	*/
-	//bc := npc.NewBroadcaster("even1")
-	//bc.Say("hello", JsonEncode(`{"key": "value"}`))
+	bc := npc.NewBroadcaster("even1")
+	bc.Say("hello", JsonEncode(`{"key": "value"}`))
 
 	select {}
 }

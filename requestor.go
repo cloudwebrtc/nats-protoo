@@ -2,24 +2,38 @@ package nprotoo
 
 import (
 	"encoding/json"
+	"sync"
 
+	"github.com/chuckpreslar/emission"
 	"github.com/cloudwebrtc/nats-protoo/logger"
 	nats "github.com/nats-io/nats.go"
 )
 
 // Requestor .
 type Requestor struct {
+	emission.Emitter
 	subj         string
 	reply        string
 	nc           *nats.Conn
 	np           *NatsProtoo
 	transcations map[int]*Transcation
+	mutex        *sync.Mutex
 }
 
 func newRequestor(channel string, np *NatsProtoo, nc *nats.Conn) *Requestor {
 	var req Requestor
+	req.Emitter = *emission.NewEmitter()
+	req.mutex = new(sync.Mutex)
 	req.subj = channel
 	req.np = np
+	req.np.On("close", func(code int, err string) {
+		logger.Infof("Transport closed [%d] %s", code, err)
+		req.Emit("close", code, err)
+	})
+	req.np.On("error", func(code int, err string) {
+		logger.Warnf("Transport got error (%d, %s)", code, err)
+		req.Emit("error", code, err)
+	})
 	req.nc = nc
 	// Sub reply inbox.
 	random, _ := GenerateRandomString(12)
@@ -54,7 +68,12 @@ func (req *Requestor) Request(method string, data map[string]interface{}, succes
 		},
 	}
 
-	req.transcations[id] = transcation
+	{
+		req.mutex.Lock()
+		defer req.mutex.Unlock()
+		req.transcations[id] = transcation
+	}
+
 	logger.Debugf("Send request [%s]", method)
 	req.np.Send(payload, req.subj, req.reply)
 }
@@ -97,7 +116,6 @@ func (req *Requestor) handleMessage(message []byte, subj string, reply string) {
 
 func (req *Requestor) handleResponse(response map[string]interface{}) {
 	id := int(response["id"].(float64))
-
 	transcation := req.transcations[id]
 
 	if transcation == nil {
@@ -111,5 +129,7 @@ func (req *Requestor) handleResponse(response map[string]interface{}) {
 		transcation.reject(int(response["errorCode"].(float64)), response["errorReason"].(string))
 	}
 
+	req.mutex.Lock()
+	defer req.mutex.Unlock()
 	delete(req.transcations, id)
 }
