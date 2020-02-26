@@ -26,7 +26,8 @@ type NatsProtoo struct {
 	mutex     *sync.Mutex
 	subj      string
 	closed    bool
-	listeners map[string][]interface{}
+	channels  map[string]string
+	listeners []interface{}
 }
 
 // NewNatsProtoo .
@@ -49,7 +50,7 @@ func NewNatsProtoo(server string) *NatsProtoo {
 	})
 	np.Emitter = *emission.NewEmitter()
 	np.mutex = new(sync.Mutex)
-	np.listeners = make(map[string][]interface{})
+	np.channels = make(map[string]string)
 	logger.Infof("New Nats Protoo: nats => %s", server)
 	return &np
 }
@@ -61,15 +62,16 @@ func (np *NatsProtoo) NewRequestor(channel string) *Requestor {
 func (np *NatsProtoo) OnRequest(channel string, listener RequestFunc) {
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
-	if _, found := np.listeners[channel]; !found {
+	request := "request"
+	if _, found := np.channels[channel]; !found {
 		np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
 		np.nc.Flush()
+		np.channels[channel] = request
 	}
-	listeners, _ := np.listeners[channel]
-	if !isContain(listeners, listener) {
-		np.On("request", listener)
+	if !isContain(np.listeners, listener) {
+		np.On(request, listener)
 		logger.Debugf("OnRequest: [channel:%s, listener:%v]", channel, listener)
-		np.listeners[channel] = append(listeners, listener)
+		np.listeners = append(np.listeners, listener)
 	}
 }
 
@@ -80,15 +82,17 @@ func (np *NatsProtoo) NewBroadcaster(channel string) *Broadcaster {
 func (np *NatsProtoo) OnBroadcast(channel string, listener func(data map[string]interface{}, subj string)) {
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
-	if _, found := np.listeners[channel]; !found {
+	event := "broadcast"
+	if _, found := np.channels[channel]; !found {
 		np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
 		np.nc.Flush()
+		np.channels[channel] = event
 	}
-	listeners, _ := np.listeners[channel]
-	if !isContain(listeners, listener) {
-		np.On("broadcast", listener)
+
+	if !isContain(np.listeners, listener) {
+		np.On(event, listener)
 		logger.Debugf("OnBroadcast: [channel:%s, listener:%v]", channel, listener)
-		np.listeners[channel] = append(listeners, listener)
+		np.listeners = append(np.listeners, listener)
 	}
 }
 
