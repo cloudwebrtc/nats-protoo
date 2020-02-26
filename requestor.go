@@ -2,11 +2,18 @@ package nprotoo
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/chuckpreslar/emission"
 	"github.com/cloudwebrtc/nats-protoo/logger"
 	nats "github.com/nats-io/nats.go"
+)
+
+const (
+	// DefaultRequestTimeout .
+	DefaultRequestTimeout = 15 * time.Second
 )
 
 // Requestor .
@@ -16,6 +23,7 @@ type Requestor struct {
 	reply        string
 	nc           *nats.Conn
 	np           *NatsProtoo
+	timeout      time.Duration
 	transcations map[int]*Transcation
 	mutex        *sync.Mutex
 }
@@ -26,6 +34,7 @@ func newRequestor(channel string, np *NatsProtoo, nc *nats.Conn) *Requestor {
 	req.mutex = new(sync.Mutex)
 	req.subj = channel
 	req.np = np
+	req.timeout = DefaultRequestTimeout
 	req.np.On("close", func(code int, err string) {
 		logger.Infof("Transport closed [%d] %s", code, err)
 		req.Emit("close", code, err)
@@ -42,6 +51,13 @@ func newRequestor(channel string, np *NatsProtoo, nc *nats.Conn) *Requestor {
 	req.nc.Flush()
 	req.transcations = make(map[int]*Transcation)
 	return &req
+}
+
+// SetRequestTimeout .
+func (req *Requestor) SetRequestTimeout(d time.Duration) {
+	req.mutex.Lock()
+	defer req.mutex.Unlock()
+	req.timeout = d
 }
 
 // Request .
@@ -72,6 +88,13 @@ func (req *Requestor) Request(method string, data map[string]interface{}, succes
 		req.mutex.Lock()
 		defer req.mutex.Unlock()
 		req.transcations[id] = transcation
+		transcation.timer = time.AfterFunc(req.timeout, func() {
+			logger.Debugf("Request timeout transcation[%d]", transcation.id)
+			transcation.reject(480, fmt.Sprintf("Request timeout %fs transcation[%d], method[%s]", req.timeout.Seconds(), transcation.id, method))
+			req.mutex.Lock()
+			defer req.mutex.Unlock()
+			delete(req.transcations, id)
+		})
 	}
 
 	logger.Debugf("Send request [%s]", method)
@@ -122,6 +145,8 @@ func (req *Requestor) handleResponse(response map[string]interface{}) {
 		logger.Errorf("received response does not match any sent request [id:%d]", id)
 		return
 	}
+
+	transcation.timer.Stop()
 
 	if response["ok"] != nil && response["ok"] == true {
 		transcation.accept(response["data"].(map[string]interface{}))

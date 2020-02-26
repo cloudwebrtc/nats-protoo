@@ -1,5 +1,7 @@
 package nprotoo
 
+import "time"
+
 // AcceptFunc .
 type AcceptFunc func(data map[string]interface{})
 
@@ -90,4 +92,5 @@ type Transcation struct {
 	accept AcceptFunc
 	reject RejectFunc
 	close  func()
+	timer  *time.Timer
 }

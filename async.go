@@ -2,23 +2,23 @@ package nprotoo
 
 // Error .
 type Error struct {
-	Code  int
+	Code   int
 	Reason string
 }
 
 // Future .
 type Future struct {
-	c chan struct{}
+	c      chan struct{}
 	result map[string]interface{}
-	err *Error
+	err    *Error
 }
 
 // NewFuture .
 func NewFuture() *Future {
 	future := Future{
-		c: make(chan struct{}, 1),
+		c:      make(chan struct{}, 1),
 		result: make(map[string]interface{}),
-		err: nil,
+		err:    nil,
 	}
 	return &future
 }
@@ -30,8 +30,8 @@ func (future *Future) Await() (map[string]interface{}, *Error) {
 }
 
 // Then .
-func (future *Future) Then(resolve func(result map[string]interface{}), reject func(err *Error)){
-	go func(){
+func (future *Future) Then(resolve func(result map[string]interface{}), reject func(err *Error)) {
+	go func() {
 		<-future.c
 		if future.err != nil {
 			reject(future.err)
@@ -41,12 +41,12 @@ func (future *Future) Then(resolve func(result map[string]interface{}), reject f
 	}()
 }
 
-func (future *Future) resolve(result map[string]interface{}){
+func (future *Future) resolve(result map[string]interface{}) {
 	future.result = result
 	close(future.c)
 }
 
-func (future *Future) reject(err *Error){
+func (future *Future) reject(err *Error) {
 	future.err = err
 	close(future.c)
 }
