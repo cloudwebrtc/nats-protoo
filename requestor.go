@@ -139,6 +139,8 @@ func (req *Requestor) handleMessage(message []byte, subj string, reply string) {
 
 func (req *Requestor) handleResponse(response map[string]interface{}) {
 	id := int(response["id"].(float64))
+	req.mutex.Lock()
+	defer req.mutex.Unlock()
 	transcation := req.transcations[id]
 
 	if transcation == nil {
@@ -154,7 +156,5 @@ func (req *Requestor) handleResponse(response map[string]interface{}) {
 		transcation.reject(int(response["errorCode"].(float64)), response["errorReason"].(string))
 	}
 
-	req.mutex.Lock()
-	defer req.mutex.Unlock()
 	delete(req.transcations, id)
 }
