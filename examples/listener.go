@@ -26,8 +26,21 @@ func main() {
 		//accept(JsonEncode(`{}`))
 		reject(404, "Not found")
 	})
+
 	npc.OnBroadcast("even1", func(data map[string]interface{}, subj string) {
-		logger.Infof("Got Broadcast subj => %s, data => %v", subj, data)
+		logger.Infof("Got Broadcast1 subj => %s, data => %v", subj, data)
+	})
+
+	npc.OnBroadcast("even1", func(data map[string]interface{}, subj string) {
+		logger.Infof("Got Broadcast2 subj => %s, data => %v", subj, data)
+	})
+
+	npc.OnBroadcast("even1", func(data map[string]interface{}, subj string) {
+		logger.Infof("Got Broadcast3 subj => %s, data => %v", subj, data)
+	})
+
+	npc.OnBroadcast("even1", func(data map[string]interface{}, subj string) {
+		logger.Infof("Got Broadcast4 subj => %s, data => %v", subj, data)
 	})
 	select {}
 }

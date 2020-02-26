@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"reflect"
 	"sync"
 	"time"
 
@@ -21,10 +22,11 @@ const (
 // NatsProtoo .
 type NatsProtoo struct {
 	emission.Emitter
-	nc     *nats.Conn
-	mutex  *sync.Mutex
-	subj   string
-	closed bool
+	nc        *nats.Conn
+	mutex     *sync.Mutex
+	subj      string
+	closed    bool
+	listeners map[string][]interface{}
 }
 
 // NewNatsProtoo .
@@ -47,6 +49,7 @@ func NewNatsProtoo(server string) *NatsProtoo {
 	})
 	np.Emitter = *emission.NewEmitter()
 	np.mutex = new(sync.Mutex)
+	np.listeners = make(map[string][]interface{})
 	logger.Infof("New Nats Protoo: nats => %s", server)
 	return &np
 }
@@ -58,9 +61,16 @@ func (np *NatsProtoo) NewRequestor(channel string) *Requestor {
 func (np *NatsProtoo) OnRequest(channel string, listener RequestFunc) {
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
-	np.On("request", listener)
-	np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
-	np.nc.Flush()
+	if _, found := np.listeners[channel]; !found {
+		np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
+		np.nc.Flush()
+	}
+	listeners, _ := np.listeners[channel]
+	if !isContain(listeners, listener) {
+		np.On("request", listener)
+		logger.Debugf("OnRequest: [channel:%s, listener:%v]", channel, listener)
+		np.listeners[channel] = append(listeners, listener)
+	}
 }
 
 func (np *NatsProtoo) NewBroadcaster(channel string) *Broadcaster {
@@ -70,9 +80,16 @@ func (np *NatsProtoo) NewBroadcaster(channel string) *Broadcaster {
 func (np *NatsProtoo) OnBroadcast(channel string, listener func(data map[string]interface{}, subj string)) {
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
-	np.On("broadcast", listener)
-	np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
-	np.nc.Flush()
+	if _, found := np.listeners[channel]; !found {
+		np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
+		np.nc.Flush()
+	}
+	listeners, _ := np.listeners[channel]
+	if !isContain(listeners, listener) {
+		np.On("broadcast", listener)
+		logger.Debugf("OnBroadcast: [channel:%s, listener:%v]", channel, listener)
+		np.listeners[channel] = append(listeners, listener)
+	}
 }
 
 func (np *NatsProtoo) onRequest(msg *nats.Msg) {
@@ -205,4 +222,13 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 	}))
 
 	return opts
+}
+
+func isContain(items []interface{}, item interface{}) bool {
+	for _, eachItem := range items {
+		if reflect.ValueOf(eachItem) == reflect.ValueOf(item) {
+			return true
+		}
+	}
+	return false
 }
