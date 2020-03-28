@@ -3,6 +3,7 @@ package nprotoo
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 	"sync"
@@ -22,12 +23,12 @@ const (
 // NatsProtoo .
 type NatsProtoo struct {
 	emission.Emitter
-	nc        *nats.Conn
-	mutex     *sync.Mutex
-	subj      string
-	closed    bool
-	channels  map[string]string
-	listeners []interface{}
+	nc                 *nats.Conn
+	mutex              *sync.Mutex
+	subj               string
+	closed             bool
+	requestListener    map[string]RequestFunc
+	broadcastListeners map[string][]BroadCastFunc
 }
 
 // NewNatsProtoo .
@@ -50,7 +51,8 @@ func NewNatsProtoo(server string) *NatsProtoo {
 	})
 	np.Emitter = *emission.NewEmitter()
 	np.mutex = new(sync.Mutex)
-	np.channels = make(map[string]string)
+	np.requestListener = make(map[string]RequestFunc)
+	np.broadcastListeners = make(map[string][]BroadCastFunc)
 	logger.Infof("New Nats Protoo: nats => %s", server)
 	return &np
 }
@@ -62,37 +64,30 @@ func (np *NatsProtoo) NewRequestor(channel string) *Requestor {
 func (np *NatsProtoo) OnRequest(channel string, listener RequestFunc) {
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
-	request := "request"
-	if _, found := np.channels[channel]; !found {
+	if _, found := np.requestListener[channel]; !found {
 		np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
 		np.nc.Flush()
-		np.channels[channel] = request
 	}
-	if !isContain(np.listeners, listener) {
-		np.On(request, listener)
-		logger.Debugf("OnRequest: [channel:%s, listener:%v]", channel, listener)
-		np.listeners = append(np.listeners, listener)
-	}
+	np.requestListener[channel] = listener
 }
 
 func (np *NatsProtoo) NewBroadcaster(channel string) *Broadcaster {
 	return newBroadcaster(channel, np, np.nc)
 }
 
-func (np *NatsProtoo) OnBroadcast(channel string, listener func(data map[string]interface{}, subj string)) {
+func (np *NatsProtoo) OnBroadcast(channel string, listener BroadCastFunc) {
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
-	event := "broadcast"
-	if _, found := np.channels[channel]; !found {
+
+	if _, found := np.broadcastListeners[channel]; !found {
 		np.nc.QueueSubscribe(channel, _EMPTY_, np.onRequest)
 		np.nc.Flush()
-		np.channels[channel] = event
+		np.broadcastListeners[channel] = make([]BroadCastFunc, 0)
 	}
 
-	if !isContain(np.listeners, listener) {
-		np.On(event, listener)
+	if !listenerIsContain(np.broadcastListeners[channel], listener) {
 		logger.Debugf("OnBroadcast: [channel:%s, listener:%v]", channel, listener)
-		np.listeners = append(np.listeners, listener)
+		np.broadcastListeners[channel] = append(np.broadcastListeners[channel], listener)
 	}
 }
 
@@ -151,11 +146,22 @@ func (np *NatsProtoo) handleRequest(request map[string]interface{}, subj string,
 		np.Reply(payload, reply)
 	}
 
-	np.Emit("request", request, accept, reject)
+	if listener, found := np.requestListener[subj]; found {
+		listener(request, accept, reject)
+	} else {
+		reject(500, fmt.Sprintf("Not found listener for %s!", subj))
+	}
 }
 
 func (np *NatsProtoo) handleBroadcast(data map[string]interface{}, subj string, reply string) {
-	np.Emit("broadcast", data, subj)
+
+	if listeners, found := np.broadcastListeners[subj]; found {
+		for _, listener := range listeners {
+			listener(data, subj)
+		}
+	} else {
+		logger.Warnf("handleBroadcast: Not found any callbacks!")
+	}
 }
 
 // Close .
@@ -228,7 +234,7 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
-func isContain(items []interface{}, item interface{}) bool {
+func listenerIsContain(items []BroadCastFunc, item BroadCastFunc) bool {
 	for _, eachItem := range items {
 		if reflect.ValueOf(eachItem) == reflect.ValueOf(item) {
 			return true

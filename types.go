@@ -11,6 +11,9 @@ type RejectFunc func(errorCode int, errorReason string)
 // RequestFunc .
 type RequestFunc func(request map[string]interface{}, accept AcceptFunc, reject RejectFunc)
 
+// BroadCastFunc .
+type BroadCastFunc func(data map[string]interface{}, subj string)
+
 /*
 * Request
 {
