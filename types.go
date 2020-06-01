@@ -7,12 +7,13 @@ import (
 
 // AcceptFunc .
 type AcceptFunc func(data json.RawMessage)
+type RespondFunc func(data interface{})
 
 // RejectFunc .
 type RejectFunc func(errorCode int, errorReason string)
 
 // RequestFunc .
-type RequestFunc func(request Request, accept AcceptFunc, reject RejectFunc)
+type RequestFunc func(request Request, accept RespondFunc, reject RejectFunc)
 
 // BroadCastFunc .
 type BroadCastFunc func(data Notification, subj string)
@@ -58,6 +59,42 @@ func (m PeerMsg) ToRequest() Request {
 	return Request{RequestData: m.RequestData, CommonData: m.CommonData}
 }
 
+func NewResponse(id int, data interface{}) (*Response, error) {
+	dataStr, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &Response{
+		ResponseData: ResponseData{
+			Response: true,
+			Ok:       true,
+		},
+		CommonData: CommonData{
+			ID:   id,
+			Data: dataStr,
+		},
+	}
+	return response, nil
+}
+
+func NewResponseErr(id int, errorCode int, errorReason string) *Response {
+	response := &Response{
+		ResponseData: ResponseData{
+			Response: true,
+			Ok:       false,
+			ResponseErrData: ResponseErrData{
+				ErrorCode:   errorCode,
+				ErrorReason: errorReason,
+			},
+		},
+		CommonData: CommonData{
+			ID: id,
+		},
+	}
+	return response
+}
+
 /*
 * Request
 {
@@ -89,12 +126,8 @@ type Request struct {
 }
 */
 type Response struct {
-	Response    bool            `json:"response"`
-	ID          int             `json:"id"`
-	Ok          bool            `json:"ok"`
-	Data        json.RawMessage `json:"data"`
-	ErrorCode   int             `json:"errorCode"`
-	ErrorReason string          `json:"errorReason"`
+	ResponseData
+	CommonData
 }
 
 /*
@@ -108,11 +141,8 @@ type Response struct {
 }
 */
 type ResponseError struct {
-	Response    bool   `json:"response"`
-	ID          int    `json:"id"`
-	Ok          bool   `json:"ok"`
-	ErrorCode   int    `json:"errorCode"`
-	ErrorReason string `json:"errorReason"`
+	ResponseData
+	CommonData
 }
 
 /*

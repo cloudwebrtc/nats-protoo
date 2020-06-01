@@ -112,12 +112,11 @@ func (np *NatsProtoo) handleMessage(message []byte, subj string, reply string) {
 
 func (np *NatsProtoo) handleRequest(msg Request, subj string, reply string) {
 	logger.Debugf("Handle request [%s]", msg.Method)
-	accept := func(data json.RawMessage) {
-		response := &Response{
-			Response: true,
-			Ok:       true,
-			ID:       msg.ID,
-			Data:     data,
+	accept := func(data interface{}) {
+		response, err := NewResponse(msg.ID, data)
+		if err != nil {
+			logger.Errorf("Error building response %v", err)
+			return
 		}
 		payload, err := json.Marshal(response)
 		if err != nil {
@@ -130,13 +129,7 @@ func (np *NatsProtoo) handleRequest(msg Request, subj string, reply string) {
 	}
 
 	reject := func(errorCode int, errorReason string) {
-		response := &ResponseError{
-			Response:    true,
-			Ok:          false,
-			ID:          msg.ID,
-			ErrorCode:   errorCode,
-			ErrorReason: errorReason,
-		}
+		response := NewResponseErr(msg.ID, errorCode, errorReason)
 		payload, err := json.Marshal(response)
 		if err != nil {
 			logger.Errorf("Marshal %v", err)

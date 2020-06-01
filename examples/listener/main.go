@@ -18,7 +18,7 @@ func JsonEncode(str string) map[string]interface{} {
 func main() {
 	logger.Init("debug")
 	npc := nprotoo.NewNatsProtoo(nprotoo.DefaultNatsURL)
-	npc.OnRequest("channel1", func(request nprotoo.Request, accept nprotoo.AcceptFunc, reject nprotoo.RejectFunc) {
+	npc.OnRequest("channel1", func(request nprotoo.Request, accept nprotoo.RespondFunc, reject nprotoo.RejectFunc) {
 		method := request.Method
 		data := request.Data
 		logger.Infof("method => %s, data => %v", method, data)
