@@ -1,7 +1,5 @@
 package nprotoo
 
-import "encoding/json"
-
 // Error .
 type Error struct {
 	Code   int
@@ -11,7 +9,7 @@ type Error struct {
 // Future .
 type Future struct {
 	c      chan struct{}
-	result json.RawMessage
+	result RawMessage
 	err    *Error
 }
 
@@ -25,13 +23,13 @@ func NewFuture() *Future {
 }
 
 // Await .
-func (future *Future) Await() (json.RawMessage, *Error) {
+func (future *Future) Await() (RawMessage, *Error) {
 	<-future.c
 	return future.result, future.err
 }
 
 // Then .
-func (future *Future) Then(resolve func(result json.RawMessage), reject func(err *Error)) {
+func (future *Future) Then(resolve func(result RawMessage), reject func(err *Error)) {
 	go func() {
 		<-future.c
 		if future.err != nil {
@@ -42,7 +40,7 @@ func (future *Future) Then(resolve func(result json.RawMessage), reject func(err
 	}()
 }
 
-func (future *Future) resolve(result json.RawMessage) {
+func (future *Future) resolve(result RawMessage) {
 	future.result = result
 	close(future.c)
 }

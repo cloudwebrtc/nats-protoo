@@ -2,11 +2,24 @@ package nprotoo
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
+
+	"github.com/prometheus/common/log"
 )
 
+type RawMessage json.RawMessage
+
+func (r RawMessage) Unmarshall(msgType interface{}) *Error {
+	if err := json.Unmarshal(r, &msgType); err != nil {
+		log.Errorf("Biz.Entry parse error %v", err.Error())
+		return &Error{Code: 400, Reason: fmt.Sprintf("Error parsing request object %v", err.Error())}
+	}
+	return nil
+}
+
 // AcceptFunc .
-type AcceptFunc func(data json.RawMessage)
+type AcceptFunc func(data RawMessage)
 type RespondFunc func(data interface{})
 
 // RejectFunc .
@@ -46,9 +59,9 @@ type NotificationData struct {
 }
 
 type CommonData struct {
-	ID     int             `json:"id"`
-	Method string          `json:"method"`
-	Data   json.RawMessage `json:"data"`
+	ID     int        `json:"id"`
+	Method string     `json:"method"`
+	Data   RawMessage `json:"data"`
 }
 
 func (m PeerMsg) ToNotification() Notification {

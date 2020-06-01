@@ -111,7 +111,7 @@ func (req *Requestor) Request(method string, data interface{}, success AcceptFun
 }
 
 // SyncRequest .
-func (req *Requestor) SyncRequest(method string, data interface{}) (json.RawMessage, *Error) {
+func (req *Requestor) SyncRequest(method string, data interface{}) (RawMessage, *Error) {
 	return req.AsyncRequest(method, data).Await()
 }
 
@@ -119,7 +119,7 @@ func (req *Requestor) SyncRequest(method string, data interface{}) (json.RawMess
 func (req *Requestor) AsyncRequest(method string, data interface{}) *Future {
 	var future = NewFuture()
 	req.Request(method, data,
-		func(resultData json.RawMessage) {
+		func(resultData RawMessage) {
 			logger.Debugf("RequestAsFuture: accept [%v]", data)
 			future.resolve(resultData)
 		},
