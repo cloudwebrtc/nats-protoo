@@ -61,13 +61,18 @@ func (req *Requestor) SetRequestTimeout(d time.Duration) {
 }
 
 // Request .
-func (req *Requestor) Request(method string, data map[string]interface{}, success AcceptFunc, reject RejectFunc) {
+func (req *Requestor) Request(method string, data interface{}, success AcceptFunc, reject RejectFunc) {
 	id := GenerateRandomNumber()
+	dataStr, err := json.Marshal(data)
+	if err != nil {
+		logger.Errorf("Marshal data %v", err)
+		return
+	}
 	request := &Request{
 		Request: true,
 		ID:      id,
 		Method:  method,
-		Data:    data,
+		Data:    dataStr,
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
@@ -102,17 +107,17 @@ func (req *Requestor) Request(method string, data map[string]interface{}, succes
 }
 
 // SyncRequest .
-func (req *Requestor) SyncRequest(method string, data map[string]interface{}) (map[string]interface{}, *Error) {
+func (req *Requestor) SyncRequest(method string, data interface{}) (json.RawMessage, *Error) {
 	return req.AsyncRequest(method, data).Await()
 }
 
 // AsyncRequest .
-func (req *Requestor) AsyncRequest(method string, data map[string]interface{}) *Future {
+func (req *Requestor) AsyncRequest(method string, data interface{}) *Future {
 	var future = NewFuture()
 	req.Request(method, data,
-		func(data map[string]interface{}) {
+		func(resultData json.RawMessage) {
 			logger.Debugf("RequestAsFuture: accept [%v]", data)
-			future.resolve(data)
+			future.resolve(resultData)
 		},
 		func(code int, reason string) {
 			logger.Debugf("RequestAsFuture: reject [%d:%s]", code, reason)
@@ -127,34 +132,39 @@ func (req *Requestor) onReply(msg *nats.Msg) {
 }
 
 func (req *Requestor) handleMessage(message []byte, subj string, reply string) {
-	var data map[string]interface{}
-	if err := json.Unmarshal(message, &data); err != nil {
+	var msg PeerMsg
+	if err := json.Unmarshal(message, &msg); err != nil {
 		panic(err)
 	}
-	if data["response"] != nil {
+
+	if msg.Response {
+		var data Response
+		if err := json.Unmarshal(message, &data); err != nil {
+			logger.Errorf("Response Marshal %v", err)
+			return
+		}
 		req.handleResponse(data)
 	}
 	return
 }
 
-func (req *Requestor) handleResponse(response map[string]interface{}) {
-	id := int(response["id"].(float64))
+func (req *Requestor) handleResponse(response Response) {
 	req.mutex.Lock()
 	defer req.mutex.Unlock()
-	transcation := req.transcations[id]
+	transcation := req.transcations[response.ID]
 
 	if transcation == nil {
-		logger.Errorf("received response does not match any sent request [id:%d]", id)
+		logger.Errorf("received response does not match any sent request [id:%d]", response.ID)
 		return
 	}
 
 	transcation.timer.Stop()
 
-	if response["ok"] != nil && response["ok"] == true {
-		transcation.accept(response["data"].(map[string]interface{}))
+	if response.Ok {
+		transcation.accept(response.Data)
 	} else {
-		transcation.reject(int(response["errorCode"].(float64)), response["errorReason"].(string))
+		transcation.reject(response.ErrorCode, response.ErrorReason)
 	}
 
-	delete(req.transcations, id)
+	delete(req.transcations, response.ID)
 }

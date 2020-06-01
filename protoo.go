@@ -111,7 +111,7 @@ func (np *NatsProtoo) handleMessage(message []byte, subj string, reply string) {
 
 func (np *NatsProtoo) handleRequest(request map[string]interface{}, subj string, reply string) {
 	logger.Debugf("Handle request [%s]", request["method"])
-	accept := func(data map[string]interface{}) {
+	accept := func(data json.RawMessage) {
 		response := &Response{
 			Response: true,
 			Ok:       true,

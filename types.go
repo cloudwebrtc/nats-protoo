@@ -1,9 +1,12 @@
 package nprotoo
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // AcceptFunc .
-type AcceptFunc func(data map[string]interface{})
+type AcceptFunc func(data json.RawMessage)
 
 // RejectFunc .
 type RejectFunc func(errorCode int, errorReason string)
@@ -13,6 +16,13 @@ type RequestFunc func(request map[string]interface{}, accept AcceptFunc, reject 
 
 // BroadCastFunc .
 type BroadCastFunc func(data map[string]interface{}, subj string)
+
+type PeerMsg struct {
+	Request      bool `json:"request"`
+	Response     bool `json:"response"`
+	Ok           bool `json:"ok"`
+	Notification bool `json:"notification"`
+}
 
 /*
 * Request
@@ -28,11 +38,11 @@ type BroadCastFunc func(data map[string]interface{}, subj string)
 }
 */
 type Request struct {
-	Request   bool                   `json:"request"`
-	ID        int                    `json:"id"`
-	ReplySubj string                 `json:"reply"`
-	Method    string                 `json:"method"`
-	Data      map[string]interface{} `json:"data"`
+	Request   bool            `json:"request"`
+	ID        int             `json:"id"`
+	ReplySubj string          `json:"reply"`
+	Method    string          `json:"method"`
+	Data      json.RawMessage `json:"data"`
 }
 
 /*
@@ -48,10 +58,12 @@ type Request struct {
 }
 */
 type Response struct {
-	Response bool                   `json:"response"`
-	ID       int                    `json:"id"`
-	Ok       bool                   `json:"ok"`
-	Data     map[string]interface{} `json:"data"`
+	Response    bool            `json:"response"`
+	ID          int             `json:"id"`
+	Ok          bool            `json:"ok"`
+	Data        json.RawMessage `json:"data"`
+	ErrorCode   int             `json:"errorCode"`
+	ErrorReason string          `json:"errorReason"`
 }
 
 /*
@@ -84,9 +96,9 @@ type ResponseError struct {
 }
 */
 type Notification struct {
-	Notification bool                   `json:"notification"`
-	Method       string                 `json:"method"`
-	Data         map[string]interface{} `json:"data"`
+	Notification bool            `json:"notification"`
+	Method       string          `json:"method"`
+	Data         json.RawMessage `json:"data"`
 }
 
 // Transcation .

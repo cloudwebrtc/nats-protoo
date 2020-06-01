@@ -32,11 +32,16 @@ func newBroadcaster(subj string, np *NatsProtoo, nc *nats.Conn) *Broadcaster {
 }
 
 // Say .
-func (bc *Broadcaster) Say(method string, data map[string]interface{}) {
+func (bc *Broadcaster) Say(method string, data interface{}) {
+	dataStr, err := json.Marshal(data)
+	if err != nil {
+		logger.Errorf("Marshal data %v", err)
+		return
+	}
 	notification := &Notification{
 		Notification: true,
 		Method:       method,
-		Data:         data,
+		Data:         dataStr,
 	}
 	str, err := json.Marshal(notification)
 	if err != nil {
