@@ -97,25 +97,26 @@ func (np *NatsProtoo) onRequest(msg *nats.Msg) {
 }
 
 func (np *NatsProtoo) handleMessage(message []byte, subj string, reply string) {
-	var data map[string]interface{}
-	if err := json.Unmarshal(message, &data); err != nil {
+	var msg PeerMsg
+	if err := json.Unmarshal(message, &msg); err != nil {
 		logger.Errorf("np.handleMessage error => %v", err)
+		return
 	}
-	if data["request"] != nil {
-		np.handleRequest(data, subj, reply)
-	} else if data["notification"] != nil {
-		np.handleBroadcast(data, subj, reply)
+	if msg.Request {
+		np.handleRequest(msg.ToRequest(), subj, reply)
+	} else if msg.Notification {
+		np.handleBroadcast(msg.ToNotification(), subj, reply)
 	}
 	return
 }
 
-func (np *NatsProtoo) handleRequest(request map[string]interface{}, subj string, reply string) {
-	logger.Debugf("Handle request [%s]", request["method"])
+func (np *NatsProtoo) handleRequest(msg Request, subj string, reply string) {
+	logger.Debugf("Handle request [%s]", msg.Method)
 	accept := func(data json.RawMessage) {
 		response := &Response{
 			Response: true,
 			Ok:       true,
-			ID:       int(request["id"].(float64)),
+			ID:       msg.ID,
 			Data:     data,
 		}
 		payload, err := json.Marshal(response)
@@ -124,7 +125,7 @@ func (np *NatsProtoo) handleRequest(request map[string]interface{}, subj string,
 			return
 		}
 		//send accept
-		logger.Debugf("Accept [%s] => (%s)", request["method"], payload)
+		logger.Debugf("Accept [%s] => (%s)", msg.Method, payload)
 		np.Reply(payload, reply)
 	}
 
@@ -132,7 +133,7 @@ func (np *NatsProtoo) handleRequest(request map[string]interface{}, subj string,
 		response := &ResponseError{
 			Response:    true,
 			Ok:          false,
-			ID:          int(request["id"].(float64)),
+			ID:          msg.ID,
 			ErrorCode:   errorCode,
 			ErrorReason: errorReason,
 		}
@@ -142,18 +143,18 @@ func (np *NatsProtoo) handleRequest(request map[string]interface{}, subj string,
 			return
 		}
 		//send reject
-		logger.Debugf("Reject [%s] => (errorCode:%d, errorReason:%s)", request["method"], errorCode, errorReason)
+		logger.Debugf("Reject [%s] => (errorCode:%d, errorReason:%s)", msg.Method, errorCode, errorReason)
 		np.Reply(payload, reply)
 	}
 
 	if listener, found := np.requestListener[subj]; found {
-		listener(request, accept, reject)
+		listener(msg, accept, reject)
 	} else {
 		reject(500, fmt.Sprintf("Not found listener for %s!", subj))
 	}
 }
 
-func (np *NatsProtoo) handleBroadcast(data map[string]interface{}, subj string, reply string) {
+func (np *NatsProtoo) handleBroadcast(data Notification, subj string, reply string) {
 
 	if listeners, found := np.broadcastListeners[subj]; found {
 		for _, listener := range listeners {

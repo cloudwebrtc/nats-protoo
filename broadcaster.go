@@ -39,9 +39,13 @@ func (bc *Broadcaster) Say(method string, data interface{}) {
 		return
 	}
 	notification := &Notification{
-		Notification: true,
-		Method:       method,
-		Data:         dataStr,
+		NotificationData: NotificationData{
+			Notification: true,
+		},
+		CommonData: CommonData{
+			Method: method,
+			Data:   dataStr,
+		},
 	}
 	str, err := json.Marshal(notification)
 	if err != nil {

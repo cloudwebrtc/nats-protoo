@@ -69,10 +69,14 @@ func (req *Requestor) Request(method string, data interface{}, success AcceptFun
 		return
 	}
 	request := &Request{
-		Request: true,
-		ID:      id,
-		Method:  method,
-		Data:    dataStr,
+		RequestData: RequestData{
+			Request: true,
+		},
+		CommonData: CommonData{
+			ID:     id,
+			Method: method,
+			Data:   dataStr,
+		},
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {

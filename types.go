@@ -12,16 +12,50 @@ type AcceptFunc func(data json.RawMessage)
 type RejectFunc func(errorCode int, errorReason string)
 
 // RequestFunc .
-type RequestFunc func(request map[string]interface{}, accept AcceptFunc, reject RejectFunc)
+type RequestFunc func(request Request, accept AcceptFunc, reject RejectFunc)
 
 // BroadCastFunc .
-type BroadCastFunc func(data map[string]interface{}, subj string)
+type BroadCastFunc func(data Notification, subj string)
 
 type PeerMsg struct {
-	Request      bool `json:"request"`
-	Response     bool `json:"response"`
-	Ok           bool `json:"ok"`
+	RequestData
+	ResponseData
+	NotificationData
+	CommonData
+}
+
+type RequestData struct {
+	Request   bool   `json:"request"`
+	ReplySubj string `json:"reply"`
+}
+
+type ResponseData struct {
+	Response bool `json:"response"`
+	Ok       bool `json:"ok"`
+	ResponseErrData
+}
+
+type ResponseErrData struct {
+	ErrorCode   int    `json:"errorCode"`
+	ErrorReason string `json:"errorReason"`
+}
+
+type NotificationData struct {
 	Notification bool `json:"notification"`
+}
+
+type CommonData struct {
+	ID     int             `json:"id"`
+	Method string          `json:"method"`
+	Data   json.RawMessage `json:"data"`
+}
+
+func (m PeerMsg) ToNotification() Notification {
+	return Notification{NotificationData: m.NotificationData, CommonData: m.CommonData}
+}
+
+func (m PeerMsg) ToRequest() Request {
+	return Request{RequestData: m.RequestData, CommonData: m.CommonData}
 }
 
 /*
@@ -38,11 +72,8 @@ type PeerMsg struct {
 }
 */
 type Request struct {
-	Request   bool            `json:"request"`
-	ID        int             `json:"id"`
-	ReplySubj string          `json:"reply"`
-	Method    string          `json:"method"`
-	Data      json.RawMessage `json:"data"`
+	RequestData
+	CommonData
 }
 
 /*
@@ -96,9 +127,8 @@ type ResponseError struct {
 }
 */
 type Notification struct {
-	Notification bool            `json:"notification"`
-	Method       string          `json:"method"`
-	Data         json.RawMessage `json:"data"`
+	CommonData
+	NotificationData
 }
 
 // Transcation .
