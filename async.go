@@ -6,6 +6,10 @@ type Error struct {
 	Reason string
 }
 
+func (e Error) Error() string {
+	return e.Reason
+}
+
 // Future .
 type Future struct {
 	c      chan struct{}

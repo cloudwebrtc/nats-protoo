@@ -2,18 +2,32 @@ package nprotoo
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"time"
-
-	"github.com/prometheus/common/log"
 )
 
-type RawMessage json.RawMessage
+type RawMessage []byte
 
-func (r RawMessage) Unmarshall(msgType interface{}) *Error {
+// MarshalJSON returns m as the JSON encoding of m.
+func (m RawMessage) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return []byte("null"), nil
+	}
+	return m, nil
+}
+
+// UnmarshalJSON sets *m to a copy of data.
+func (m *RawMessage) UnmarshalJSON(data []byte) error {
+	if m == nil {
+		return errors.New("json.RawMessage: UnmarshalJSON on nil pointer")
+	}
+	*m = append((*m)[0:0], data...)
+	return nil
+}
+
+func (r RawMessage) Unmarshal(msgType interface{}) *Error {
 	if err := json.Unmarshal(r, &msgType); err != nil {
-		log.Errorf("Biz.Entry parse error %v", err.Error())
-		return &Error{Code: 400, Reason: fmt.Sprintf("Error parsing request object %v", err.Error())}
+		return &Error{Code: 400, Reason: err.Error()}
 	}
 	return nil
 }
