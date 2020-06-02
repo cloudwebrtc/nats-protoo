@@ -6,31 +6,34 @@ type Error struct {
 	Reason string
 }
 
+func (e Error) Error() string {
+	return e.Reason
+}
+
 // Future .
 type Future struct {
 	c      chan struct{}
-	result map[string]interface{}
+	result RawMessage
 	err    *Error
 }
 
 // NewFuture .
 func NewFuture() *Future {
 	future := Future{
-		c:      make(chan struct{}, 1),
-		result: make(map[string]interface{}),
-		err:    nil,
+		c:   make(chan struct{}, 1),
+		err: nil,
 	}
 	return &future
 }
 
 // Await .
-func (future *Future) Await() (map[string]interface{}, *Error) {
+func (future *Future) Await() (RawMessage, *Error) {
 	<-future.c
 	return future.result, future.err
 }
 
 // Then .
-func (future *Future) Then(resolve func(result map[string]interface{}), reject func(err *Error)) {
+func (future *Future) Then(resolve func(result RawMessage), reject func(err *Error)) {
 	go func() {
 		<-future.c
 		if future.err != nil {
@@ -41,7 +44,7 @@ func (future *Future) Then(resolve func(result map[string]interface{}), reject f
 	}()
 }
 
-func (future *Future) resolve(result map[string]interface{}) {
+func (future *Future) resolve(result RawMessage) {
 	future.result = result
 	close(future.c)
 }
