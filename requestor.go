@@ -138,18 +138,18 @@ func (req *Requestor) onReply(msg *nats.Msg) {
 func (req *Requestor) handleMessage(message []byte, subj string, reply string) {
 	var msg PeerMsg
 	if err := json.Unmarshal(message, &msg); err != nil {
-		panic(err)
+		logger.Errorf("handleMessage PeerMsg Unmarshal %v", err)
+		return
 	}
 
 	if msg.Response {
 		var data Response
 		if err := json.Unmarshal(message, &data); err != nil {
-			logger.Errorf("Response Marshal %v", err)
+			logger.Errorf("handleMessage Response Unmarshal %v", err)
 			return
 		}
 		req.handleResponse(data)
 	}
-	return
 }
 
 func (req *Requestor) handleResponse(response Response) {

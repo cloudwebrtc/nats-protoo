@@ -107,7 +107,6 @@ func (np *NatsProtoo) handleMessage(message []byte, subj string, reply string) {
 	} else if msg.Notification {
 		np.handleBroadcast(msg.ToNotification(), subj, reply)
 	}
-	return
 }
 
 func (np *NatsProtoo) handleRequest(msg Request, subj string, reply string) {
@@ -148,7 +147,7 @@ func (np *NatsProtoo) handleRequest(msg Request, subj string, reply string) {
 }
 
 func (np *NatsProtoo) handleBroadcast(data Notification, subj string, reply string) {
-
+	logger.Debugf("Handle broadcast [%s] %v", data.Method, string(data.Data))
 	if listeners, found := np.broadcastListeners[subj]; found {
 		for _, listener := range listeners {
 			listener(data, subj)
